@@ -1,0 +1,12 @@
+{
+    "conpilerOptions":{
+        "strict":true,
+        "target":"es5",
+        "module":"commonjs",
+        "alwaysStrict":"CommonJS",
+        "noImplicitAny":"true",
+        "noImplicitThis":"true",
+        "sourceMap":"true",
+        "downlevelIteration":"true"
+    }
+}
