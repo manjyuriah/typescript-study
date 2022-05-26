@@ -1,12 +1,26 @@
 type Store={
   currentPage: number;
-  feeds: [];
+  feeds: NewsFeed[];
 }
-type NewsFeed={
+type News={
   id: number;
-  comments_count: number;
   title: string;
-  read: boolean;
+  url: string;
+  user: string;
+  time_ago: number;
+  content: string;
+}
+type NewsFeed= News&{
+  comments_count: number;
+  read?: boolean;
+  points: number;
+}
+type NewsDetail=News&{
+  comments:NewsComment[];
+}
+type NewsComment=News&{
+  level:number;
+  comments:NewsComment[];
 }
 
 const container: HTMLElement | null=document.getElementById('root');
@@ -15,30 +29,38 @@ const content=document.createElement('div')
 const NEWS_URL = 'https://api.hnpwa.com/v0/news/1.json';
 const CONTENT_URL = 'https://api.hnpwa.com/v0/item/@id.json';
 //@id = 마킹 -> 임의로 적고 나중에 바꿀 부분
-const store = {
+const store: Store = {
   currentPage: 1,
   feeds: [],
 };
 
-function getData(url) {
+function getData<AjaxResponse>(url: string): AjaxResponse {//함수는 파라미터뿐만아니라 리턴값도 타입 지정
   ajax.open('GET', url, false);
   ajax.send();
     //응답값을 객체로 바꾸기
-    return JSON.parse(ajax.response);
-  }
+    return JSON.parse(ajax.response);//객체 반환
+  }//newsFeed,newsDetail 두군데서 해당 함수가 쓰임
+  //NewsFeed로 만든 타입이 newsDetail에서는 사용 안됨
+
 //읽었냐 안읽었냐 확인 함수
-function makeFeeds(feeds) {
+function makeFeeds(feeds: NewsFeed[]): NewsFeed[] {
   for (let i = 0; i < feeds.length; i++) {
     feeds[i].read = false;
   }
-
   return feeds;
+}
+function updateView(html: string): void{
+  if(container!=null){
+    container.innerHTML=html;   
+  }else{
+    console.error('최상위 컨테이너가 없어 UI를 진행하지 못합니다.')
+  }
 }
 
 //라우터에서 해당 함수로 글 목록 불러옴
-function newsFeed(){//함수는 호출해야 출력됨. 이것만 있음 아무거도 안뜨지
+function newsFeed(): void{//함수는 호출해야 출력됨. 이것만 있음 아무거도 안뜨지
     // const newsFeed= getData(NEWS_URL)
-    let newsFeed= store.feeds; //읽음을 나타내기위해 전역변수로 쓰이는 store안에 feeds를 넣음
+    let newsFeed: NewsFeed[]= store.feeds; //읽음을 나타내기위해 전역변수로 쓰이는 store안에 feeds를 넣음
     //그리고 출력되는애를 store의 feed로 이관했는데 일단 store.feeds는 비어있으니까 안무거도 안뜸
     //최초의 한번은 getData로 불러와야함
     const newsList=[];
@@ -50,13 +72,15 @@ function newsFeed(){//함수는 호출해야 출력됨. 이것만 있음 아무�
         <div class="mx-auto px-4">
           <div class="flex justify-between items-center py-6">
             <div class="flex justify-start">
-              <h1 class="font-extrabold">Hacker News</h1>
+              <a href="#/page/1">
+                <h1 class="font-extrabold">Hacker News</h1>
+              </a>
             </div>
             <div class="items-center justify-end">
-              <a href="#/page/{{__prev_page__}}" class="text-gray-500">
+              <a href="#/page/{{__prev_page__}}" class="text-gray-500 hover:text-black">
                 < Previous
               </a>
-              <a href="#/page/{{__next_page__}}" class="text-gray-500 ml-4">
+              <a href="#/page/{{__next_page__}}" class="text-gray-500 ml-4 hover:text-black">
                 Next >
               </a>
             </div>
@@ -70,7 +94,7 @@ function newsFeed(){//함수는 호출해야 출력됨. 이것만 있음 아무�
     `;
     //최초로 피드 읽어오는 코드
     if (newsFeed.length === 0) {
-      newsFeed = store.feeds = makeFeeds(getData(NEWS_URL));
+      newsFeed = store.feeds = makeFeeds(getData<NewsFeed[]>(NEWS_URL));
     }
     // newsList.push('<ul>')
     //template에는 구조와 데이터 위치만
@@ -98,9 +122,10 @@ function newsFeed(){//함수는 호출해야 출력됨. 이것만 있음 아무�
         `)
     }
     //template를 넣는과정에서 계산코드등 삽입 -> 복잡도를 줄일 수 있음
+    //replace의 value는 string인데 number타입으로 연산해서 오류
     template=template.replace('{{__news_feed__}}',newsList.join(''))
-    template=template.replace('{{__prev_page__}}',store.currentPage > 1 ?store.currentPage-1 :1)
-    template=template.replace('{{__next_page__}}',store.currentPage +1)
+    template=template.replace('{{__prev_page__}}',String(store.currentPage > 1 ?store.currentPage-1 :1))
+    template=template.replace('{{__next_page__}}',String(store.currentPage +1))
         // newsList.push('</ul>')
         // newsList.push(`
         //     <div>
@@ -110,15 +135,36 @@ function newsFeed(){//함수는 호출해야 출력됨. 이것만 있음 아무�
         // `)
         //배열 형태의 newsList를 join를 이용해 하나의 문자열로 만들어 innerHTML로 넣음
         // container.innerHTML=newsList.join('')
-    container.innerHTML=template;
-        
+    updateView(template)
 }
 
+function makeComment(comments: NewsComment[]): string {
+  const commentString = [];
+
+  for(let i = 0; i < comments.length; i++) {
+    const comment: NewsComment=comments[i]
+    commentString.push(`
+      <div style="padding-left: ${comment.level * 40}px;" class="mt-4">
+        <div class="text-gray-400">
+          <i class="fa fa-sort-up mr-2"></i>
+          <strong>${comment.user}</strong> ${comment.time_ago}
+        </div>
+        <p class="text-gray-700">${comment.content}</p>
+      </div>      
+    `);
+
+    if (comment.comments.length > 0) {//대댓글 호출할때마다 called변수+1
+      commentString.push(makeComment(comment.comments));
+    }
+  }
+
+  return commentString.join(''); //재귀호출(댓글에 대댓에 끝을 알 수 없는 구조에서 사용)
+}
 // const ul=document.createElement('ul');
 
-function newsDetail() {
+function newsDetail(): void {
   const id = location.hash.substr(7);
-  const newsContent = getData(CONTENT_URL.replace('@id', id))
+  const newsContent = getData<NewsDetail>(CONTENT_URL.replace('@id', id))
     // const title=this.document.createElement('h1');
     let template = `
     <div class="bg-gray-600 min-h-screen pb-8">
@@ -154,30 +200,7 @@ function newsDetail() {
       break;
     }
   }
-
-  function makeComment(comments, called = 0) {
-    const commentString = [];
-
-    for(let i = 0; i < comments.length; i++) {
-      commentString.push(`
-        <div style="padding-left: ${called * 40}px;" class="mt-4">
-          <div class="text-gray-400">
-            <i class="fa fa-sort-up mr-2"></i>
-            <strong>${comments[i].user}</strong> ${comments[i].time_ago}
-          </div>
-          <p class="text-gray-700">${comments[i].content}</p>
-        </div>      
-      `);
-
-      if (comments[i].comments.length > 0) {//대댓글 호출할때마다 called변수+1
-        commentString.push(makeComment(comments[i].comments,called+1));
-      }
-    }
-
-    return commentString.join(''); //재귀호출(댓글에 대댓에 끝을 알 수 없는 구조에서 사용)
-  }
-
-  container.innerHTML = template.replace('{{__comments__}}', makeComment(newsContent.comments));
+  updateView(template.replace('{{__comments__}}', makeComment(newsContent.comments)))
 }
 
     // div.innerHTML=`
@@ -204,7 +227,7 @@ function newsDetail() {
 
 // container.appendChild(ul);
 // container.appendChild(content);
-function router() {
+function router(): void {
   const routePath = location.hash;
 
   if (routePath === '') {

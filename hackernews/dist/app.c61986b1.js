@@ -134,8 +134,10 @@ function getData(url) {
   ajax.open('GET', url, false);
   ajax.send(); //응답값을 객체로 바꾸기
 
-  return JSON.parse(ajax.response);
-} //읽었냐 안읽었냐 확인 함수
+  return JSON.parse(ajax.response); //객체 반환
+} //newsFeed,newsDetail 두군데서 해당 함수가 쓰임
+//NewsFeed로 만든 타입이 newsDetail에서는 사용 안됨
+//읽었냐 안읽었냐 확인 함수
 
 
 function makeFeeds(feeds) {
@@ -144,6 +146,14 @@ function makeFeeds(feeds) {
   }
 
   return feeds;
+}
+
+function updateView(html) {
+  if (container != null) {
+    container.innerHTML = html;
+  } else {
+    console.error('최상위 컨테이너가 없어 UI를 진행하지 못합니다.');
+  }
 } //라우터에서 해당 함수로 글 목록 불러옴
 
 
@@ -156,7 +166,7 @@ function newsFeed() {
   var newsList = []; //template구조로 코드를 짜면 직관적으로 UI구조 파악에 쉬움
   //마킹된 위치로 어떤 데이터가 어디 들어갈지도 파악 가능
 
-  var template = "\n    <div class=\"bg-gray-600 min-h-screen\">\n      <div class=\"bg-white text-xl\">\n        <div class=\"mx-auto px-4\">\n          <div class=\"flex justify-between items-center py-6\">\n            <div class=\"flex justify-start\">\n              <h1 class=\"font-extrabold\">Hacker News</h1>\n            </div>\n            <div class=\"items-center justify-end\">\n              <a href=\"#/page/{{__prev_page__}}\" class=\"text-gray-500\">\n                < Previous\n              </a>\n              <a href=\"#/page/{{__next_page__}}\" class=\"text-gray-500 ml-4\">\n                Next >\n              </a>\n            </div>\n          </div> \n        </div>\n      </div>\n      <div class=\"p-4 text-2xl text-gray-700\">\n        {{__news_feed__}}        \n      </div>\n    </div>\n    "; //최초로 피드 읽어오는 코드
+  var template = "\n    <div class=\"bg-gray-600 min-h-screen\">\n      <div class=\"bg-white text-xl\">\n        <div class=\"mx-auto px-4\">\n          <div class=\"flex justify-between items-center py-6\">\n            <div class=\"flex justify-start\">\n              <a href=\"#/page/1\">\n                <h1 class=\"font-extrabold\">Hacker News</h1>\n              </a>\n            </div>\n            <div class=\"items-center justify-end\">\n              <a href=\"#/page/{{__prev_page__}}\" class=\"text-gray-500 hover:text-black\">\n                < Previous\n              </a>\n              <a href=\"#/page/{{__next_page__}}\" class=\"text-gray-500 ml-4 hover:text-black\">\n                Next >\n              </a>\n            </div>\n          </div> \n        </div>\n      </div>\n      <div class=\"p-4 text-2xl text-gray-700\">\n        {{__news_feed__}}        \n      </div>\n    </div>\n    "; //최초로 피드 읽어오는 코드
 
   if (newsFeed.length === 0) {
     newsFeed = store.feeds = makeFeeds(getData(NEWS_URL));
@@ -182,7 +192,7 @@ function newsFeed() {
   //배열 형태의 newsList를 join를 이용해 하나의 문자열로 만들어 innerHTML로 넣음
   // container.innerHTML=newsList.join('')
 
-  container.innerHTML = template;
+  updateView(template);
 } // const ul=document.createElement('ul');
 
 
@@ -218,7 +228,7 @@ function newsDetail() {
     return commentString.join(''); //재귀호출(댓글에 대댓에 끝을 알 수 없는 구조에서 사용)
   }
 
-  container.innerHTML = template.replace('{{__comments__}}', makeComment(newsContent.comments));
+  updateView(template.replace('{{__comments__}}', makeComment(newsContent.comments)));
 } // div.innerHTML=`
 // <li>
 //     <a href="#${newsFeed[i].id}">${newsFeed[i].title}(${newsFeed[i].comments_count})</a>
@@ -283,7 +293,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "52074" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "51468" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
